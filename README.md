@@ -21,8 +21,8 @@ would make it production software are deliberately left unimplemented — see
 ## Quickstart
 
 ```bash
-git clone https://github.com/databanking-org/databanking-reference.git
-cd databanking-reference
+git clone https://github.com/databanking-org/databank.git
+cd databank
 pip install -e ".[dev]"
 pytest
 python examples/age_check.py
