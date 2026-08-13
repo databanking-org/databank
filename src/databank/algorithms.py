@@ -88,6 +88,38 @@ def age_over_threshold(
     return _years_between(date_of_birth, as_of) >= threshold_years
 
 
+@register(
+    "identity.matches_owner",
+    attribute="identity",
+    max_output_bits=1,
+    description=(
+        "Does a company's own record refer to this owner? Used for erasure "
+        "without disclosure."
+    ),
+)
+def identity_matches_owner(
+    identity: Any, candidate: Any, salt: bytes, threshold: float | None = None
+) -> bool:
+    """Return whether ``candidate`` -- a record the *company* already holds --
+    refers to this owner.
+
+    The inversion worth noticing: every other algorithm here answers a
+    question about the owner's data. This one answers a question about the
+    *requestor's* data, using the owner's only as the yardstick. The owner
+    discloses nothing in order to be erased, which is the whole point; the
+    company discloses one of its records to the sandbox, which it can
+    hardly object to, since it is a record it wants rid of.
+
+    One bit leaves. The threshold is not the requestor's to set, and the
+    candidate must fall inside the broadcast fingerprint band. See
+    :func:`databank.matching.identity_matches` for what those two refusals
+    do and do not achieve.
+    """
+    from databank.matching import identity_matches
+
+    return identity_matches(identity, candidate, salt, threshold)
+
+
 # --------------------------------------------------------------------------
 # Stubs -- registered so the shape is visible, not yet implemented
 # --------------------------------------------------------------------------

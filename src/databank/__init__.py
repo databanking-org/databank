@@ -11,6 +11,13 @@ See https://databanking.org.
 """
 
 from databank.databank import Databank
+from databank.matching import (
+    CanonicalIdentity,
+    Identity,
+    canonicalise_identity,
+    fingerprint,
+    select_candidates,
+)
 from databank.models import (
     AuditEntry,
     Decision,
@@ -24,11 +31,16 @@ __version__ = "0.1.0"
 
 __all__ = [
     "AuditEntry",
+    "CanonicalIdentity",
     "Databank",
     "Decision",
+    "Identity",
     "Query",
     "QueryResult",
     "Record",
     "StandingPermission",
     "__version__",
+    "canonicalise_identity",
+    "fingerprint",
+    "select_candidates",
 ]

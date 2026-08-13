@@ -12,6 +12,7 @@ from typing import Any
 from databank import algorithms
 from databank.audit import AuditLog
 from databank.models import (
+    AlgorithmRefusal,
     Decision,
     Query,
     QueryResult,
@@ -113,13 +114,23 @@ class Databank:
             self.audit.record(query, Decision.DENY, 0, reason)
             return QueryResult(Decision.DENY, reason=reason)
 
-        value, bits = execute(
-            algorithm.fn,
-            algorithm.id,
-            record,
-            algorithm.max_output_bits,
-            **query.parameters,
-        )
+        try:
+            value, bits = execute(
+                algorithm.fn,
+                algorithm.id,
+                record,
+                algorithm.max_output_bits,
+                **query.parameters,
+            )
+        except AlgorithmRefusal as refusal:
+            # The algorithm saw the request and declined it. Charge it
+            # against the quota anyway -- a probe the owner paid nothing for
+            # is a probe a requestor can repeat for free -- and put it on
+            # her statement, where a pattern of refusals is legible.
+            reason = f"algorithm refused: {refusal}"
+            self._ledger(query.owner_id).consume(query, year)
+            self.audit.record(query, Decision.DENY, 0, reason)
+            return QueryResult(Decision.DENY, reason=reason)
 
         self._ledger(query.owner_id).consume(query, year)
         self.audit.record(query, Decision.ALLOW, bits)

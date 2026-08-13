@@ -34,6 +34,22 @@ class SealError(RuntimeError):
     """Raised when a sealed value is read outside a sandbox context."""
 
 
+class AlgorithmRefusal(RuntimeError):
+    """Raised by an algorithm that declines to answer the question asked.
+
+    Distinct from a permission failure, which is settled before any data is
+    touched, and from :class:`databank.bitbudget.BitBudgetExceeded`, which is
+    a fault in the algorithm rather than in the request. A refusal means the
+    request was well-formed, permitted, and still not one the algorithm will
+    answer -- a requestor trying to choose a match threshold, say.
+
+    The Databank converts these into ``DENY`` and logs them, because a
+    refused probe is the single most informative line an owner's statement
+    can carry. An exception that propagated to the requestor and left no
+    trace would tell the wrong party.
+    """
+
+
 @dataclass(frozen=True)
 class SealedValue:
     """A stored attribute value that only the sandbox may read.

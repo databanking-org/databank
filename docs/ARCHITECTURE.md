@@ -60,6 +60,38 @@ Denied and consent-pending queries produce audit entries. The pattern of who
 is asking is itself information the owner is entitled to, and repeated-query
 probing is only visible if the refusals are recorded too.
 
+An algorithm may also refuse a request that passed the permission check —
+`AlgorithmRefusal`, raised inside the sandbox and converted to `DENY` by
+`Databank.submit_query`. Letting the exception propagate would deliver the
+information to the requestor, who already knows what it tried, and to nobody
+else. Refusals consume quota for the same reason: a probe that costs nothing
+can be repeated without limit.
+
+## Erasure runs the query in the other direction
+
+`identity.matches_owner` is the only algorithm here that answers a question
+about the *requestor's* data. The company submits one of its own records; the
+owner's record is the yardstick; one bit comes back. This is what makes
+erasure without disclosure possible, and it inherits every property of the
+ordinary flow — permission, quota, bit budget, audit — because it is the
+ordinary flow with the subject and object exchanged.
+
+Two constraints are specific to it. The threshold is a protocol constant
+rather than a parameter, because a requestor free to vary it recovers the
+similarity score by bisection; and candidates must fall inside the broadcast
+fingerprint band, because otherwise the query is a general-purpose identity
+oracle. Neither is sufficient. Within the band a requestor can still vary the
+fine-grained fields and observe where the answer flips, which is the
+cumulative-leakage gap below arriving by a third route.
+
+The interesting property is not a leak but a dead end: the fingerprint must be
+coarse enough to survive a typo and the threshold loose enough to forgive one,
+and both of those knobs have a privacy cost at one end and a rights cost at the
+other. `matching.calibrate_threshold` refuses to pick a point on that curve
+because the two errors land on different people — the owner, and a stranger
+whose record is deleted without anyone being able to detect it. See
+`src/databank/matching.py`, which is mostly this argument.
+
 ## The known gap
 
 Bit-scarcity bounds a single response. It does not bound a sequence.
