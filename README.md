@@ -99,6 +99,20 @@ The stubs are covered by tests asserting that they fail loudly. A stub that
 silently returns a default is worse than no stub — it invites someone to
 build on a number nobody chose.
 
+Three of them have issues open —
+[#1](https://github.com/databanking-org/databank/issues/1) cumulative leakage,
+[#2](https://github.com/databanking-org/databank/issues/2) attestation,
+[#4](https://github.com/databanking-org/databank/issues/4) tamper-evident audit —
+alongside [#3](https://github.com/databanking-org/databank/issues/3), a usability
+gap in the consent flow rather than a stub.
+
+The rest are deliberately untracked. `settlement.access_fee`,
+`settlement.owner_share` and `storage.persist` are policy choices about pricing,
+residency and retention; the right forum for them is the whitepaper and,
+eventually, legislation — not a pull request. The placeholder `income.*`,
+`location.*` and `health.*` algorithms wait on cumulative-leakage accounting,
+so they follow #1 rather than standing on their own.
+
 ## Relationship to the papers
 
 The whitepaper sets out the model and the policy case. A forthcoming
