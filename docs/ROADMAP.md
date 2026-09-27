@@ -4,9 +4,12 @@ Ordered roughly by how much each unblocks.
 
 ## Near term
 
-- **Cumulative leakage accounting.** Replace the stub with a defensible bound
-  over sequences of queries. Prerequisite for the location and income
-  algorithms, and the most substantive open problem here.
+- **Leakage policies for more attributes.** The retention-bounded leakage
+  budget is implemented (`databank.leakage`), with one illustrative policy
+  for birth dates. Location and income need policies of their own — prior
+  ranges and resolutions in their own units — before those algorithms can
+  ship. The after-the-fact estimate of what an audit sequence disclosed
+  (`bitbudget.cumulative_leakage_bound`) is still open.
 - **Tamper-evident audit.** Hash chain plus owner-held checkpoints, or
   publication to a transparency log.
 - **Consent flow.** A `CONSENT_REQUIRED` result currently ends the story. It

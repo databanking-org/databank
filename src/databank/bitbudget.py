@@ -10,9 +10,10 @@ and reject anything over the cap.
 What it does not do: bound *cumulative* leakage across repeated queries. A
 requestor who runs threshold checks at 18, 19, 20... can binary-search a
 birth year while every individual response stays within a one-bit cap. That
-residual risk is closed by quotas and the audit trail, not by bit-scarcity
-alone. Formalising the cumulative bound is open work for the Technical
-Architecture Paper; see :func:`cumulative_leakage_bound`.
+is bounded by :mod:`databank.leakage`: a per-datum quota, shared by all
+requestors and derived from the retention limit on what a requestor may
+hold. What remains open is an *estimate* of the information actually
+disclosed by a given sequence; see :func:`cumulative_leakage_bound`.
 """
 
 from __future__ import annotations
@@ -86,12 +87,16 @@ def enforce(value: Any, max_bits: int = DEFAULT_MAX_BITS) -> int:
 def cumulative_leakage_bound(audit_entries, attribute: str) -> float:
     """Estimate total bits leaked about ``attribute`` across many queries.
 
-    STUB. Naively summing per-response bits overstates leakage for repeated
-    identical queries and understates it for adaptively chosen thresholds,
-    which is precisely why this needs a proper treatment rather than a
-    plausible-looking sum. Deferred to the Technical Architecture Paper.
+    STUB. The *bound* is enforced by :class:`databank.leakage.LeakageBudget`,
+    which caps how many answers about a datum can be held at once. This
+    function would be the complementary *estimate*: how much a particular
+    sequence in the audit log actually disclosed, for a regulator or an
+    owner reviewing it after the fact. Naively summing per-response bits
+    overstates leakage for repeated identical queries and understates it for
+    adaptively chosen thresholds, which is why this needs a proper treatment
+    rather than a plausible-looking sum.
     """
     raise NotImplementedError(
-        "cumulative leakage accounting is open work -- see the Technical "
-        "Architecture Paper. Use quotas and the audit trail in the interim."
+        "estimating disclosed information from an audit sequence is open "
+        "work; the leakage bound itself is enforced by databank.leakage"
     )

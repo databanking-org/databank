@@ -147,7 +147,9 @@ def income_over_threshold(annual_income: Any, threshold: Any) -> bool:
 def location_within_region(home_address: Any, region_code: str) -> bool:
     """STUB. Requires a geocoding boundary set inside the sandbox. Note that
     repeated queries over shrinking regions binary-search an address, so this
-    one should not ship before cumulative-leakage accounting exists."""
+    one should not ship without a :class:`databank.leakage.DatumPolicy`
+    covering ``home_address``, with a prior range and resolution chosen for
+    locations rather than dates."""
     raise NotImplementedError("location.within_region is not implemented")
 
 

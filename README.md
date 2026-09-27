@@ -27,6 +27,7 @@ pip install -e ".[dev]"
 pytest
 python examples/age_check.py
 python examples/erasure_request.py
+python examples/leakage_budget.py
 ```
 
 ```python
@@ -58,6 +59,7 @@ bank.statement("alice")  # one audit entry, visible to Alice
 |---|---|---|
 | 1. Submission | `databank.algorithms` | The requestor names a **registered** algorithm. The registry records which attribute it reads and how many bits it may return, so the Databank can reason about the request before touching any data. |
 | 2. Permission | `databank.permissions` | Checked against the owner's standing permissions, including annual quotas. An unrecognised request yields `CONSENT_REQUIRED`, not silent refusal — the owner still gets to say yes. |
+| 2a. Leakage budget | `databank.leakage` | If the Databank has one, the per-datum quota shared by all requestors is checked next. A denied query consumes nothing. |
 | 3. Execution | `databank.sandbox` | The record is unsealed only inside an active sandbox context, and only the algorithm meets it. |
 | 4. Bit-scarce output | `databank.bitbudget` | The result is measured *inside* the boundary and discarded if it exceeds the algorithm's declared budget. Values whose domain cannot be bounded are refused outright. |
 | 5. Audit | `databank.audit` | Every query is logged — admitted, denied, or pending consent. |
@@ -73,6 +75,42 @@ attestation is stubbed.
 
 **Bit budgets are checked before the result leaves.** An algorithm that tries
 to return the record itself raises `BitBudgetExceeded` and nothing crosses.
+
+## Repeated queries: the leakage budget
+
+One bit per answer does not stop a requestor from asking many questions.
+`age >= 18` evaluated on successive dates, halving the interval each time,
+recovers a birthday in about nine answers once the year is known.
+`examples/leakage_budget.py` shows it happening, and then stops it.
+
+The model supplies the missing constraint. Only a Databank may store
+attributable data; only attested requestors may query, and every query is
+logged; and a requestor may hold an answer only for a short retention period
+`tau`, long enough to act on it. Bisection needs the answers combined, and
+therefore held. So the Databank caps queries per datum:
+
+- the quota attaches to the **datum, not the requestor**, and counts all
+  requestors together, so colluding requestors gain nothing;
+- **correlated attributes share one quota** (`date_of_birth`, `age`,
+  `school_year` are one group);
+- each requestor's **share is smaller than the daily quota**, so no single
+  requestor can exhaust the datum and block legitimate checks;
+- within any retention window at most `k − 1` queries run, where
+  `k = ceil(log2(R / r))` is the number of answers needed to resolve a
+  realistic prior range `R` to resolution `r`, which gives a maximum request
+  frequency `f_max = (k − 1) / tau`;
+- designated requestors may be **exempt**, and are still logged.
+
+The budget renews: what a requestor may hold expires after `tau`, unlike a
+differential-privacy budget, which is spent for good. The parameter values in
+`adult_birth_date_policy()` are illustrative; choosing real ones is open.
+
+```python
+from databank import Databank
+from databank.leakage import LeakageBudget, adult_birth_date_policy
+
+bank = Databank(leakage=LeakageBudget([adult_birth_date_policy()]))
+```
 
 ## Erasure without disclosure
 
@@ -126,8 +164,9 @@ about it — and both consume quota, because free probing is unbounded probing.
 Even so, a broker can vary a spelling *within* the band and watch for the
 answer to flip, recovering the true string from the shape of the threshold
 ball. That is the age-threshold binary search wearing a different hat, and it
-is bounded by quota, fee and audit trail, which is to say by
-`bitbudget.cumulative_leakage_bound` — a stub.
+is bounded by quota, fee and audit trail, and by a `databank.leakage` policy
+once one is defined for identity fields. None is yet: the realistic prior
+range of a name has no obvious unit.
 
 The example also prints the failure with no defence at all: a record holding
 Alice's name, spelt correctly, at the address she left in 2019. The fingerprint
@@ -143,6 +182,9 @@ Implemented and tested:
 - the erasure-without-disclosure flow: canonicalisation, lossy fingerprinting,
   candidate selection, one-bit matching, and both refusals
 - standing permissions with annual quotas
+- the retention-bounded leakage budget: per-datum quotas shared by all
+  requestors, grouped correlated attributes, per-requestor shares, sliding
+  retention windows, and exemptions
 - per-response bit measurement and cap enforcement
 - the sandbox boundary and sealed-value discipline
 - algorithm refusals, logged as `DENY` on the owner's statement
@@ -153,7 +195,7 @@ Deliberately stubbed — each raises `NotImplementedError` with a note on
 
 | Stub | Why it is open |
 |---|---|
-| `bitbudget.cumulative_leakage_bound` | Summing per-response bits overstates leakage for repeated identical queries and understates it for adaptively chosen thresholds. A requestor probing at 18, 19, 20… binary-searches a birth year while every single response stays within a one-bit cap. |
+| `bitbudget.cumulative_leakage_bound` | The *bound* is enforced by `databank.leakage`. This is the complementary *estimate* of what a given audit sequence actually disclosed, for review after the fact. Summing per-response bits overstates leakage for repeated identical queries and understates it for adaptively chosen thresholds. |
 | `attestation.verify_quote` | Vendor-specific, and binding the quote to a reproducible build matters more than the signature check — an attested enclave running unaudited code proves little. |
 | `audit.seal_chain` | A hash chain alone lets an owner detect tampering only if they retained an earlier root; needs owner-held checkpoints or a transparency log. |
 | `settlement.access_fee`, `settlement.owner_share` | Policy parameters, not engineering ones. Per-bit pricing would make cheap queries about sensitive attributes attractive — a distributional choice for legislation, not for this repository. |
@@ -161,14 +203,15 @@ Deliberately stubbed — each raises `NotImplementedError` with a note on
 | `matching.encode_for_private_match`, `matching.private_match` | Bloom-filter record linkage is the obvious construction and has been repeatedly broken — by frequency and pattern-mining cryptanalysis, and by graph matching that needs far less prior knowledge. Both need an accumulated corpus of encodings to work, which an erasure broadcast supplies over time, drawn from exactly the population that asked to be forgotten. Shipping an encoding that *looks* private would undermine the one claim the erasure case rests on. `matching.similarity` is plaintext edit distance and says so. |
 | `matching.calibrate_threshold` | The two errors fall on different people, and one of them is not party to the transaction. An allocation of rights, not a calibration. |
 | `matching.erasure_receipt` | The Databank can log that a match was answered; it cannot see whether the company then deleted anything, and a company's attestation about its own systems is worth whatever the penalty for lying is worth. |
-| `income.*`, `location.*`, `health.*` algorithms | Registered so the shape is visible. `location.within_region` in particular should not ship before cumulative-leakage accounting exists: repeated queries over shrinking regions binary-search an address. |
+| `income.*`, `location.*`, `health.*` algorithms | Registered so the shape is visible. `location.within_region` in particular should not ship without a leakage policy for `home_address`: repeated queries over shrinking regions binary-search an address. |
 
 The stubs are covered by tests asserting that they fail loudly. A stub that
 silently returns a default is worse than no stub — it invites someone to
 build on a number nobody chose.
 
 Four of them have issues open —
-[#1](https://github.com/databanking-org/databank/issues/1) cumulative leakage,
+[#1](https://github.com/databanking-org/databank/issues/1) cumulative leakage
+(the bound is implemented; the after-the-fact estimate remains open),
 [#2](https://github.com/databanking-org/databank/issues/2) attestation,
 [#4](https://github.com/databanking-org/databank/issues/4) tamper-evident audit,
 [#5](https://github.com/databanking-org/databank/issues/5) privacy-preserving
@@ -182,15 +225,17 @@ are policy choices about pricing, residency, retention and the allocation of a
 controller's data-quality failure; the right forum for them is the whitepaper
 and, eventually, legislation — not a pull request. `matching.erasure_receipt`
 is the same: deletion is enforced by penalty, not by protocol. The placeholder
-`income.*`, `location.*` and `health.*` algorithms wait on cumulative-leakage
-accounting, so they follow #1 rather than standing on their own.
+`income.*`, `location.*` and `health.*` algorithms wait on leakage policies
+for their own attributes, so they follow #1 rather than standing on their own.
 
 ## Relationship to the papers
 
-The whitepaper sets out the model and the policy case. A forthcoming
-Technical Architecture Paper takes up the questions this repository marks as
-open, cumulative leakage bounds in particular. Nothing here should be read as
-settling them.
+The whitepaper sets out the model and the policy case. The Technical
+Architecture Paper, in preparation, takes up the questions this repository
+marks as open. Its retention-bounded leakage budget is what
+`databank.leakage` implements; the parameter values it leaves open are left
+open here too. Nothing else here should be read as settling the questions
+the paper treats as open.
 
 ## Contributing
 

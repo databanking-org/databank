@@ -111,6 +111,9 @@ class Query:
     attribute: str
     parameters: dict[str, Any] = field(default_factory=dict)
     as_of: date | None = None
+    #: When the query reaches the Databank. ``None`` means now; set it
+    #: explicitly to replay a sequence against the leakage budget.
+    submitted_at: datetime | None = None
 
 
 @dataclass(frozen=True)

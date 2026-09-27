@@ -11,6 +11,7 @@ See https://databanking.org.
 """
 
 from databank.databank import Databank
+from databank.leakage import DatumPolicy, LeakageBudget
 from databank.matching import (
     CanonicalIdentity,
     Identity,
@@ -33,8 +34,10 @@ __all__ = [
     "AuditEntry",
     "CanonicalIdentity",
     "Databank",
+    "DatumPolicy",
     "Decision",
     "Identity",
+    "LeakageBudget",
     "Query",
     "QueryResult",
     "Record",

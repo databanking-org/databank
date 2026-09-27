@@ -98,11 +98,30 @@ Bit-scarcity bounds a single response. It does not bound a sequence.
 
 A requestor with an annual quota of two learns little. A requestor with an
 unbounded quota, asking `age >= 18`, `age >= 19`, `age >= 20`, binary-searches
-a birth year while every individual response is one bit. Quotas and the audit
-trail close this in practice; the two mechanisms are complementary, not
-substitutes for a proper bound.
+a birth year while every individual response is one bit.
 
-Formalising that bound — over adaptive, correlated queries, across multiple
-colluding requestors — is open work for the Technical Architecture Paper.
-`bitbudget.cumulative_leakage_bound` is where it will live, and raises until
-it exists.
+`databank.leakage` bounds the sequence. Its premise is the model's retention
+rule: a requestor may hold an answer only for a short period `tau`, so
+bisection requires answers to be held unlawfully, and at most `k − 1`
+answers can be held at once if at most `k − 1` queries run per window, where
+`k` is the number of answers needed to resolve the datum. A daily quota,
+stricter than that, supplies the margin against a requestor that ignores the
+retention rule, and the audit log shows the range-halving pattern it leaves.
+
+Three modelling choices carry the argument. The quota belongs to the datum,
+not the requestor, so colluding requestors draw on one allowance rather than
+one each. Correlated attributes share a group, so the same fact cannot be
+queried through a different field. And each requestor's share is smaller
+than the daily quota, so a hostile requestor cannot spend the datum's budget
+and block legitimate checks.
+
+The check sits after the permission ledger and before execution, and both
+are charged only when the algorithm runs or refuses, so a denied query
+consumes nothing. The owner's own annual quotas still apply; the leakage
+budget is an additional limit the Databank imposes on every requestor, not a
+replacement for the owner's choices.
+
+What remains open is the parameterisation — `tau` per query class, the
+groupings, the prior ranges — and an after-the-fact estimate of what a
+particular audit sequence disclosed. `bitbudget.cumulative_leakage_bound` is
+where that estimate will live, and raises until it exists.

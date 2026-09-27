@@ -70,6 +70,8 @@ def test_context_is_revoked_after_execution() -> None:
         sealed.unseal(context)
 
 
-def test_cumulative_leakage_is_explicitly_open_work() -> None:
-    with pytest.raises(NotImplementedError, match="Technical"):
+def test_leakage_estimate_is_explicitly_open_work() -> None:
+    # The bound is enforced by databank.leakage; the after-the-fact
+    # estimate over an audit sequence is still open.
+    with pytest.raises(NotImplementedError, match="databank.leakage"):
         cumulative_leakage_bound([], "date_of_birth")

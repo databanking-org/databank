@@ -6,11 +6,12 @@ five steps of the worked example at https://databanking.org/worked-example.html.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any
 
 from databank import algorithms
 from databank.audit import AuditLog
+from databank.leakage import LeakageBudget
 from databank.models import (
     AlgorithmRefusal,
     Decision,
@@ -27,11 +28,18 @@ from databank.storage import RecordStore
 class Databank:
     """A custodian holding records on behalf of Information Owners."""
 
-    def __init__(self, name: str = "reference-databank") -> None:
+    def __init__(
+        self,
+        name: str = "reference-databank",
+        leakage: LeakageBudget | None = None,
+    ) -> None:
         self.name = name
         self._records = RecordStore()
         self._permissions: dict[str, PermissionLedger] = {}
         self.audit = AuditLog()
+        #: Per-datum quotas bounding cumulative leakage. ``None`` leaves
+        #: only the owner's per-requestor quotas in force.
+        self.leakage = leakage
 
     # -- owner-facing ------------------------------------------------------
 
@@ -82,7 +90,8 @@ class Databank:
         """Submit an algorithm and receive a bit-scarce answer.
 
         1. Look up the registered algorithm (no data touched yet).
-        2. Check the owner's standing permissions.
+        2. Check the owner's standing permissions, then the per-datum
+           leakage budget shared by all requestors.
         3. Execute inside the sandbox, where the algorithm alone meets the
            sealed record.
         4. Return at most the algorithm's declared bit budget.
@@ -108,6 +117,15 @@ class Databank:
             self.audit.record(query, decision, 0, reason)
             return QueryResult(decision, reason=reason)
 
+        at = query.submitted_at or datetime.now(timezone.utc)
+        if self.leakage is not None:
+            decision, reason = self.leakage.check(
+                query.owner_id, query.requestor_id, query.attribute, at
+            )
+            if decision is not Decision.ALLOW:
+                self.audit.record(query, decision, 0, reason)
+                return QueryResult(decision, reason=reason)
+
         record = self._records.get(query.owner_id, query.attribute)
         if record is None:
             reason = f"no record held for attribute {query.attribute!r}"
@@ -128,15 +146,22 @@ class Databank:
             # is a probe a requestor can repeat for free -- and put it on
             # her statement, where a pattern of refusals is legible.
             reason = f"algorithm refused: {refusal}"
-            self._ledger(query.owner_id).consume(query, year)
+            self._consume(query, year, at)
             self.audit.record(query, Decision.DENY, 0, reason)
             return QueryResult(Decision.DENY, reason=reason)
 
-        self._ledger(query.owner_id).consume(query, year)
+        self._consume(query, year, at)
         self.audit.record(query, Decision.ALLOW, bits)
         return QueryResult(Decision.ALLOW, value=value, bits_disclosed=bits)
 
     # -- internals ---------------------------------------------------------
+
+    def _consume(self, query: Query, year: int, at: datetime) -> None:
+        self._ledger(query.owner_id).consume(query, year)
+        if self.leakage is not None:
+            self.leakage.consume(
+                query.owner_id, query.requestor_id, query.attribute, at
+            )
 
     def _ledger(self, owner_id: str) -> PermissionLedger:
         return self._permissions.setdefault(owner_id, PermissionLedger())
