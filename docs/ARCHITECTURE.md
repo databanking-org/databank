@@ -82,7 +82,8 @@ similarity score by bisection; and candidates must fall inside the broadcast
 fingerprint band, because otherwise the query is a general-purpose identity
 oracle. Neither is sufficient. Within the band a requestor can still vary the
 fine-grained fields and observe where the answer flips, which is the
-cumulative-leakage gap below arriving by a third route.
+cumulative-leakage gap below arriving by a third route. `databank.leakage`
+closes it only once a policy is defined for identity fields.
 
 The interesting property is not a leak but a dead end: the fingerprint must be
 coarse enough to survive a typo and the threshold loose enough to forgive one,

@@ -217,9 +217,9 @@ def main() -> None:
         "  can still vary a spelling and watch for the answer to flip,\n"
         "  recovering the true string from the shape of the threshold ball --\n"
         "  the same attack as binary-searching a birth year with repeated\n"
-        "  age checks. Quota, fee and audit trail are what bound it, and\n"
-        "  bounding it properly is bitbudget.cumulative_leakage_bound, which\n"
-        "  is a stub."
+        "  age checks. Quota, fee and audit trail bound it for now. A\n"
+        "  databank.leakage policy would bound it properly, but none is\n"
+        "  defined for identity fields yet: a name has no obvious prior range."
     )
 
     # (7) Alice's statement. Every query, including the ones she would want

@@ -377,10 +377,10 @@ def identity_matches(
     recovering the true spelling from the shape of the threshold ball -- in
     exactly the way repeated age-threshold queries binary-search a birth
     year. The band check constrains probing in the coarse dimensions, which
-    are the ones a typo does not affect anyway. What actually bounds this
-    attack is the Owner's quota, the per-query fee, and the audit trail --
-    the same three, and the same open accounting problem, as
-    :func:`databank.bitbudget.cumulative_leakage_bound`.
+    are the ones a typo does not affect anyway. What bounds this attack is
+    the Owner's quota, the per-query fee and the audit trail, and a
+    :mod:`databank.leakage` policy once one is defined for identity fields.
+    None is yet: the realistic prior range of a name has no obvious unit.
     """
     if threshold is not None:
         raise ThresholdNotNegotiable(
